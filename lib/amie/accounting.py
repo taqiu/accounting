@@ -93,8 +93,7 @@ def _process_single_rac(tgdb, rtdb, in_packet):
     group_name='teragrid'
     
     if not rtdb.is_existing_project(grant_number, project_id):
-        print 
-        return 
+        raise Exception('Project does not exist')
     rtdb.create_cluster_account(username, cluster_nm, group_name)
     rtdb.allocate_resource(project_id, username, cluster_nm)
     
