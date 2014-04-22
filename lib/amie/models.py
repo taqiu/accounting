@@ -2,7 +2,7 @@
 class Packet():
     """
     This class is used to represent an AMIE packet
-    The attributes of packet can be accessed like packet.packet_rec_id
+    The attributes of packet can be accessed directly like packet.packet_rec_id
     The data of packet should use set and get methods to access.
        For example,
            packet.get_value('UserEmail', 'john.deo@example.com')
@@ -19,6 +19,21 @@ class Packet():
         self.ts = None
         self.expected_reply_type = None
         self.data = {}
+
+
+    def validate(self):
+        """
+        The database class will invoke this method to validate the packet before saving.
+        """
+        if self.trans_rec_id is None \
+           or self.packet_id is None \
+           or self.type_id is None \
+           or self.version is None \
+           or self.state_id is None \
+           or self.outgoing_flag is None \
+           or self.expected_reply_type is None:
+            return False
+        return True
 
     ############## get/set data functions #####################
     def set_value(self, tag, value, subtage=""):

@@ -1,6 +1,7 @@
 import db
 from config import get_config
 from models import Packet
+from SOAPpy import SOAPProxy
 
 ############################### Read configuration file #######################################
 cfg = get_config()
@@ -15,10 +16,9 @@ rt_user = cfg.get('accounting', 'user')
 rt_password = cfg.get('accounting', 'password')
 rt_schema = cfg.get('accounting', 'schema')
 
-"""
-from SOAPpy import SOAPProxy
 
-def create_new_user(username):
+
+def get_unix_id(username):
     url = 'https://itaccounts.iu.edu/soap/tg.cgi'
     proxy = 'https://itaccounts.iu.edu/TG'
     SOAPaction = "https://itaccounts.iu.edu/TG#get_unix_id"
@@ -27,10 +27,6 @@ def create_new_user(username):
 
     return int(server.get_unix_id(
       username,'603362a5264513d758b2f883abab55d0'))
-"""    
-
-def get_unix_id(username):
-    return 1234567
 
 
 
@@ -83,7 +79,7 @@ def _process_single_rac(tgdb, rtdb, in_packet):
             username = iu_user
         else:
             iu_user_status = 'f'
-            username = rtdb.generate_teragrid_username(first_name, middle_name, last_name)
+            username = rtdb.generate_new_username(first_name, middle_name, last_name)
         
         unixid = get_unix_id(username)
         # create new user account in db
@@ -119,10 +115,11 @@ def _process_single_rac(tgdb, rtdb, in_packet):
         out_packet.set_value(tag, in_packet.get_value(tag))
     
     # copy list
-    # 'PiRequestedLoginList',  'Sfos', 'PiDnList'
+    # 'UserDnList', 'UserRequestedLoginList', 'ResourceList'
+    """
     for tag in ('UserDnList', 'UserRequestedLoginList', 'ResourceList'):
         out_packet.data[tag] = in_packet.data[tag]
-        
+    """    
     out_packet.set_value('ProjectID', project_id)
     out_packet.set_value('UserRemoteSiteLogin', username)
     out_packet.set_value('UserPersonID', username)
@@ -174,7 +171,7 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
         else:
             iu_user_status = 'f'
             # generate a user name according to user's name
-            username = rtdb.generate_teragrid_username(first_name, middle_name, last_name)
+            username = rtdb.generate_new_username(first_name, middle_name, last_name)
         
         unixid = get_unix_id(username)
         # create new user account in db
@@ -196,7 +193,7 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
     # create outgoing packet
     out_packet = Packet()
     out_packet.trans_rec_id = in_packet.trans_rec_id
-    out_packet.packet_id = 1  
+    out_packet.packet_id = 1  # the packet ID that AMIE specifies, we set it to '1' because it is a new packet
     out_packet.type_id = 7
     out_packet.version = '1.0'
     out_packet.state_id = 2
@@ -213,8 +210,10 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
     
     # copy list
     # 'PiRequestedLoginList',  'Sfos', 'PiDnList'
+    """
     for tag in ('PiRequestedLoginList', 'Sfos', 'PiDnList'):
         out_packet.data[tag] = in_packet.data[tag]
+    """
     
     # 'ProjectID',  username ('PiRemoteSiteLogin', 'PiPersonID')
     out_packet.set_value('ProjectID', project_id)

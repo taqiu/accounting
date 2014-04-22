@@ -2,7 +2,7 @@ import random
 import psycopg2
 import models
 import time
-
+import sys
 
 class AccountDB():
     """
@@ -80,10 +80,10 @@ class AccountDB():
         self.cursor.execute("SELECT cluster_name FROM %s.teragrid_resource_to_cluster WHERE resource_name = '%s';" % (self.schema, resource_list))
         try:
             cluster_nm = self.cursor.fetchone()[0]
-            print("cluster is '%s'"%(cluster_nm))
+            if self.verbose: print("cluster is '%s'"%(cluster_nm))
             return cluster_nm
         except IndexError:
-            print "ERROR - Did NOT get valid <cluster_nm>"
+            raise Exception("ERROR - Did NOT get valid <cluster_nm> from %s" % (resource_list))
         return None
         
 
@@ -99,7 +99,7 @@ class AccountDB():
                          % (self.schema, username, cluster_nm))
         
         if self.cursor.fetchone() is None:
-            print("Creating cluster_acct (and group) records now!")
+            if self.verbose: print("Creating cluster_acct (and group) records now!")
             self.cursor.execute("BEGIN;")
             self.cursor.execute("""INSERT INTO %s.cluster_account 
                         (username, cluster_name, status) 
@@ -128,7 +128,7 @@ class AccountDB():
         # check project id
         check_proj = 'TG-'+grant_number
         if project_id and project_id != check_proj:
-            raise Exception('bad project id')
+            raise Exception('ERROR - bad project id')
         project_id = check_proj
         
         # create project if doesn't exist
@@ -160,22 +160,26 @@ class AccountDB():
     
     
     def allocate_resource(self, project_id, username, cluster_nm):
+        """
+        Insert new resource allocation record into database
+        If the record exist, change status to 'enable' and no record is created
+        """
         # allocate resource
         self.cursor.execute("""SELECT status from %s.teragrid_allocation  
                         WHERE cluster_name = '%s' AND project = '%s';""" 
                         % (self.schema, cluster_nm, project_id))
         alloc_status = self.cursor.fetchone()
         if alloc_status:
-            print "allocation exists; '%s' on '%s' for '%s'; status is: '%s'"\
+            if self.verbose:  print "allocation exists; '%s' on '%s' for '%s'; status is: '%s'"\
                     % (project_id, cluster_nm, username, alloc_status[0])
             if alloc_status[0] == 'disable':
-                print 'enable resource'
+                if self.verbose: print 'enable resource'
                 self.cursor.execute("""UPDATE %s.teragrid_allocation 
                                     SET status = 'enabled' 
                                     WHERE project = '%s' AND cluster_name = '%s';""" 
                                     % (self.schema, project_id, cluster_nm))
         else:
-            print 'allocate resource for project %s' % project_id
+            if self.verbose:  print 'allocate resource for project %s' % project_id
             self.cursor.execute("""INSERT INTO %s.teragrid_allocation 
                             (username, cluster_name, project, status) 
                             VALUES ('%s', '%s', '%s', 'enabled');"""
@@ -183,7 +187,7 @@ class AccountDB():
         
 
     
-    def generate_teragrid_username(self, first_name, middle_name, last_name):
+    def generate_new_username(self, first_name, middle_name, last_name):
         """
         generate candidate user names and pick one from them 
         return None if no candidate user name is available
@@ -240,16 +244,16 @@ class AmieDB():
         self.close()
     
         
-    def find_packet(self, packet_rec_id):
+    def find_packet(self, packet_rec_id, resource='mason.iu.xsede'):
         """
         Return a Packet object with the given packet_rec_id
         """
-        packets = self.find_all_packets(conditions=['packet_rec_id=%s' % packet_rec_id])
+        packets = self.find_all_packets(conditions=['packet_rec_id=%s' % packet_rec_id], resource=resource)
         return packets[0] if packets else None
 
 
 
-    def find_all_packets(self, conditions=[], black_list=[], limit=25):
+    def find_all_packets(self, conditions=[], black_list=[], resource='mason.iu.xsede' ,limit=25):
         """
         Return a bunch of Packets which satisfy the given conditions.
         The conditions should be SQL statement, for example 'state_id=12'
@@ -261,7 +265,8 @@ class AmieDB():
             WHERE packet_rec_id IN (
                 SELECT packet_rec_id
                 FROM %s.data_tbl
-                WHERE VALUE LIKE 'mason.iu.xsede') """ % (self.schema, self.schema)
+                WHERE tag='ResourceList'
+                 AND value LIKE '%s') """ % (self.schema, self.schema, resource)
         if conditions:                   
             sql += ' AND ' + ' AND '.join(conditions)
         if black_list:
@@ -309,6 +314,8 @@ class AmieDB():
         """
         Create a new packet in database
         """
+        if not packet.validate():
+            raise Exception('The given AMIE packet is not validate')
         self.cursor.execute("BEGIN;")
         self.cursor.execute("""INSERT INTO %s.packet_tbl 
                     (trans_rec_id, packet_id, type_id, version, state_id, outgoing_flag, ts)
@@ -328,13 +335,15 @@ class AmieDB():
         for tag in packet.data.keys():
             for seq in packet.data[tag].keys():
                 for subtag in packet.data[tag][seq].keys():
-                    if packet.data[tag][seq][subtag] is not None:
+                    if packet.data[tag][seq][subtag] is not None or packet.data[tag][seq][subtag] != '':
                         self.cursor.execute("""INSERT INTO %s.data_tbl 
                             (packet_rec_id, tag, subtag, seq, value) 
                             VALUES ('%d', '%s', '%s', '%d', '%s') """
                             % (self.schema, packet.packet_rec_id, tag, subtag, seq, packet.data[tag][seq][subtag]))
         
         self.cursor.execute("COMMIT;")
+        if self.verbose:
+                print "[%s] Add new packet (packet_rec_id: %s)" % (time.asctime(), packet.packet_rec_id)
             
 
             
