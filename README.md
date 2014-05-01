@@ -51,6 +51,8 @@ optional arguments:
 This module cantians the Packet class which is used to represent the Amie packets.
 
 ```python
+from amie.models import Packet
+
 # create a new packet
 packet = Packet()
 
@@ -78,6 +80,8 @@ This module is developed for amie and accounting database operation.
 * amie databse
 
 ```python
+from amie.db import AmieDB
+
 tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
 tgdb.add_packet(packet) # packet is a models.Packet object
 packets = tgdb.find_all_packets(limit=5)
@@ -91,11 +95,13 @@ tgdb.close()
 * accouting database
 
 ```python
+from amie.db import AccountDB
+
 rtdb = AccountDB('testing', 'taqiu', 'password', 'public', True)
 rtdb.add_new_user('tg-jdoe', 122333, 'johndoe@example.com', 'john', 'doe', 'f', 't')
 rtdb.close()
 ```
 ### lib/amie/accounting.py
-This module is developed basing on db.py, it is used to process rpc and rac packets.
+This module is developed basing on the 'amie.db' module, and it is used to process rpc and rac packets.
 
 
