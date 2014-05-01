@@ -47,30 +47,6 @@ optional arguments:
 ```
 
 ## Main Modules 
-### lib/amie/accounting.py
-### lib/amie/db.py
-This module is developed for database operation.
-* amie databse
-
-```python
-tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
-tgdb.add_packet(packet) # packet is a models.Packet object
-packets = tgdb.find_all_packets(limit=5)
-# Found packet with type_id=19 state_id=6
-packets = tgdb.find_all_packets(conditions=['type_id=19', 'state_id=6'])
-# Found packet by packet_rec_id
-packet = tgdb.find_packet(4)
-tgdb.close()
-```
-
-* accouting database
-
-```python
-rtdb = AccountDB('testing', 'taqiu', 'password', 'public', True)
-rtdb.add_new_user('tg-jdoe', 122333, 'johndoe@example.com', 'john', 'doe', 'f', 't')
-rtdb.close()
-```
-
 ### lib/amie/models.py
 This module cantians the Packet class which is used to represent the Amie packets.
 
@@ -97,3 +73,29 @@ packet.set_value('ResourceList', 'mason.iu.xsede')
 packet.set_value('ProjectID', 'TG-87WHATEVER')
 
 ```
+### lib/amie/db.py
+This module is developed for amie and accounting database operation.
+* amie databse
+
+```python
+tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
+tgdb.add_packet(packet) # packet is a models.Packet object
+packets = tgdb.find_all_packets(limit=5)
+# Found packet with type_id=19 state_id=6
+packets = tgdb.find_all_packets(conditions=['type_id=19', 'state_id=6'])
+# Found packet by packet_rec_id
+packet = tgdb.find_packet(4)
+tgdb.close()
+```
+
+* accouting database
+
+```python
+rtdb = AccountDB('testing', 'taqiu', 'password', 'public', True)
+rtdb.add_new_user('tg-jdoe', 122333, 'johndoe@example.com', 'john', 'doe', 'f', 't')
+rtdb.close()
+```
+### lib/amie/accounting.py
+This module is developed basing on db.py, it is used to process rpc and rac packets.
+
+
