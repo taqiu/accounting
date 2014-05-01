@@ -25,15 +25,21 @@ class Packet():
         """
         The database class will invoke this method to validate the packet before saving.
         """
-        if self.trans_rec_id is None \
-           or self.packet_id is None \
-           or self.type_id is None \
-           or self.version is None \
-           or self.state_id is None \
-           or self.outgoing_flag is None \
-           or self.expected_reply_type is None:
-            return False
-        return True
+        if self.trans_rec_id is None:
+            raise Exception('trans_rec_id cannot be none')
+        if self.packet_id is None:
+            raise Exception('packet_id cannot be none')
+        if self.type_id is None:
+            raise Exception('type_id cannot be none')
+        if self.version is None:
+            raise Exception('version cannot be none')
+        if self.state_id is None:
+            raise Exception('state_id cannot be none')
+        if self.outgoing_flag is None:
+            raise Exception('outgoing_flag cannot be none')
+        if self.expected_reply_type is None:
+            raise Exception('expected_reply_type cannot be none')
+
 
     ############## get/set data functions #####################
     def set_value(self, tag, value, subtage=""):
@@ -54,7 +60,7 @@ class Packet():
 
 
     def get_value(self, tag, subtage=""):
-        self.get_item(tag, 0, subtage)
+        return self.get_item(tag, 0, subtage)
         
     
     def get_list(self, tag):
@@ -69,9 +75,8 @@ class Packet():
 
    
     def get_item(self, tag, seq, subtage=""):
-        if tag not in self.data\
-         or seq not in self.data[tag]\
-         or subtage not in self.data[tag][seq]:
+        if tag not in self.data or seq not in self.data[tag]\
+            or subtage not in self.data[tag][seq]:
             return None
         
         return self.data[tag][seq][subtage]

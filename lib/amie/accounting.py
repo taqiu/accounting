@@ -1,6 +1,8 @@
 import db
+import time
 from config import get_config
 from models import Packet
+
 from SOAPpy import SOAPProxy
 
 ############################### Read configuration file #######################################
@@ -30,7 +32,7 @@ def get_unix_id(username):
 
 
 
-def is_iu_user(self, email):
+def is_iu_user(email):
     """
     check whether the e-mail is an IU user email
     return the username if true else None
@@ -38,7 +40,7 @@ def is_iu_user(self, email):
     email = email.lower()
     if '@iu.edu' in email or '@iupui.edu' in email\
          or '@indiana.edu' in email:
-        return email.stript().split('@')[0]
+        return email.strip().split('@')[0]
     return None
 
 
@@ -52,29 +54,37 @@ def process_rac(packet_rec_id=None, verbose=False):
     rtdb = db.AccountDB(rt_database, rt_user, rt_password, rt_schema, verbose)
     
     if packet_rec_id is None:
-        packets = tgdb.find_packets(['type_id=16', 'state_id=6'], black_list)
+        packets = tgdb.find_all_packets(['type_id=16', 'state_id=6'], black_list)
         for packet in packets:
-            _process_single_rac(tgdb, rtdb, packet)
+            _process_single_rac(tgdb, rtdb, packet, verbose)
     else:
         packet = tgdb.find_packets(packet_rec_id)
-        _process_single_rac(tgdb, rtdb, packet)
+        _process_single_rac(tgdb, rtdb, packet, verbose)
 
     tgdb.close()
     rtdb.close()
     
 
-def _process_single_rac(tgdb, rtdb, in_packet):
+def _process_single_rac(tgdb, rtdb, in_packet, verbose=False):
+    """
+    process a single request account create packet
+    """
+    if verbose:
+        print '[%s] process rac packet [%s]' % (time.asctime(), in_packet.packet_rec_id)
+    
     email = in_packet.get_value('UserEmail')
     first_name = in_packet.get_value('UserFirstName')
     middle_name = in_packet.get_value('UserMiddleName')
     last_name = in_packet.get_value('UserLastName')
     
     # create new account
-    username = rtdb.is_existing_user(email)
+    username = rtdb.is_existing_user(email, first_name, last_name)
     if username is None:
         # check whether it is a user by email
         iu_user = is_iu_user(email)
         if iu_user is not None:
+            if verbose:
+                print '[%s] user [%s] is a iu user' % (time.asctime(), iu_user)
             iu_user_status = 't'
             username = iu_user
         else:
@@ -115,10 +125,10 @@ def _process_single_rac(tgdb, rtdb, in_packet):
     
     # copy list
     # 'UserDnList', 'UserRequestedLoginList', 'ResourceList'
-    """
     for tag in ('UserDnList', 'UserRequestedLoginList', 'ResourceList'):
-        out_packet.data[tag] = in_packet.data[tag]
-    """    
+        if tag in in_packet.data:
+            out_packet.data[tag] = in_packet.data[tag]
+    
     out_packet.set_value('ProjectID', project_id)
     out_packet.set_value('UserRemoteSiteLogin', username)
     out_packet.set_value('UserPersonID', username)
@@ -142,18 +152,24 @@ def process_rpc(packet_rec_id=None, verbose=False):
     rtdb = db.AccountDB(rt_database, rt_user, rt_password, rt_schema, verbose)
     
     if packet_rec_id is None:
-        packets = tgdb.find_packets(['type_id=19', 'state_id=6'], black_list)
+        packets = tgdb.find_all_packets(['type_id=19', 'state_id=6'], black_list)
         for packet in packets:
-            _process_single_rpc(tgdb, rtdb, packet)
+            _process_single_rpc(tgdb, rtdb, packet, verbose)
     else:
         packet = tgdb.find_packets(packet_rec_id)
-        _process_single_rpc(tgdb, rtdb, packet)
+        _process_single_rpc(tgdb, rtdb, packet, verbose)
 
     tgdb.close()
     rtdb.close()
 
 
-def _process_single_rpc(tgdb, rtdb, in_packet):
+def _process_single_rpc(tgdb, rtdb, in_packet, verbose=False):
+    """
+    process a single request project create packet
+    """
+    if verbose:
+        print '[%s] process rpc packet [%s]' % (time.asctime(), in_packet.packet_rec_id)
+    
     email = in_packet.get_value('PiEmail')
     first_name = in_packet.get_value('PiFirstName')
     middle_name = in_packet.get_value('PiMiddleName')
@@ -165,6 +181,8 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
         # check whether it is a user by email
         iu_user = is_iu_user(email)
         if iu_user is not None:
+            if verbose:
+                print '[%s] user [%s] is a iu user' % (time.asctime(), iu_user)
             iu_user_status = 't'
             username = iu_user
         else:
@@ -175,6 +193,7 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
         unixid = get_unix_id(username)
         # create new user account in db
         rtdb.add_new_user(username, unixid, email, first_name, last_name, iu_user_status, 't')
+            
         
     # allocation resource for the project
     grant_number = in_packet.get_value('GrantNumber')
@@ -209,10 +228,10 @@ def _process_single_rpc(tgdb, rtdb, in_packet):
     
     # copy list
     # 'PiRequestedLoginList',  'Sfos', 'PiDnList'
-    """
     for tag in ('PiRequestedLoginList', 'Sfos', 'PiDnList'):
-        out_packet.data[tag] = in_packet.data[tag]
-    """
+        if tag in in_packet.data:
+            out_packet.data[tag] = in_packet.data[tag]
+
     
     # 'ProjectID',  username ('PiRemoteSiteLogin', 'PiPersonID')
     out_packet.set_value('ProjectID', project_id)

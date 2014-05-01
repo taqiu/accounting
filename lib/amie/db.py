@@ -2,7 +2,6 @@ import random
 import psycopg2
 import models
 import time
-import sys
 
 class AccountDB():
     """
@@ -23,6 +22,7 @@ class AccountDB():
     def __init__(self, database, user, password, schema, verbose=False):
         self.schema = schema
         self.verbose = verbose
+        self.database = database
         if self.verbose: 
             print '[%s] Connect accounting database [%s] as user [%s]' % (time.asctime(), database, user)
         self.conn = psycopg2.connect(database=database, user=user, password=password)
@@ -30,6 +30,8 @@ class AccountDB():
 
 
     def close(self):
+        if self.verbose: 
+            print '[%s] Close accounting database [%s] connection' % (time.asctime(),self.database)
         if not self.cursor.closed:
             self.cursor.close()
         if not self.conn.closed:
@@ -51,9 +53,9 @@ class AccountDB():
         
         # sometimes, user might change their email domain
         # check this with their firstname and last name
-        email_id = email.stript().split('@')[0]
+        email_id = email.strip().split('@')[0]
         self.cursor.execute("""SELECT username FROM %s.user 
-                            WHERE email like '%s%%' 
+                            WHERE email like '%s@%%' 
                             AND first_name like '%s' 
                             AND last_name like '%s';""" % (self.schema, email_id, first_name, last_name))
         result = self.cursor.fetchone()
@@ -63,29 +65,28 @@ class AccountDB():
         return None
 
 
-
     def add_new_user(self, username, unixid, email, first_name, last_name, iu_user, teragrid_user):
         """
         Add a new account record into user table
         """
-        self.cursor.execute("INSERT INTO %s.user (username, unixid, email, first_name, last_name, iu_user, teragrid_user) VALUES ('%s',%i,'%s','%s','%s','%s','t');" 
+        self.cursor.execute("BEGIN;")
+        self.cursor.execute("INSERT INTO %s.user (username, unixid, email, first_name, last_name, iu_user, teragrid_user) VALUES ('%s',%s,'%s','%s','%s','%s','%s');" 
                         % (self.schema, username, unixid, email, first_name, last_name,iu_user, teragrid_user))
-
+        self.cursor.execute("COMMIT;")
+        if self.verbose: 
+            print '[%s] Create new user [%s]' % (time.asctime(), username) 
 
 
     def find_cluster_by_resource_list(self, resource_list):
         """
-        
+        Find the cluster name according to the resource list
         """
         self.cursor.execute("SELECT cluster_name FROM %s.teragrid_resource_to_cluster WHERE resource_name = '%s';" % (self.schema, resource_list))
-        try:
-            cluster_nm = self.cursor.fetchone()[0]
-            if self.verbose: print("cluster is '%s'"%(cluster_nm))
-            return cluster_nm
-        except IndexError:
-            raise Exception("ERROR - Did NOT get valid <cluster_nm> from %s" % (resource_list))
-        return None
-        
+        cluster_nm = self.cursor.fetchone()
+        if cluster_nm is None:
+            raise Exception("ERROR - Did NOT get valid <cluster_nm> from '%s'" % (resource_list))
+        if self.verbose: print("[%s] cluster is '%s'"%(time.asctime(), cluster_nm))
+        return cluster_nm[0]
 
 
     def create_cluster_account(self, username, cluster_nm, group_name):
@@ -98,8 +99,7 @@ class AccountDB():
                         WHERE username = '%s' and cluster_name = '%s';"""
                          % (self.schema, username, cluster_nm))
         
-        if self.cursor.fetchone() is None:
-            if self.verbose: print("Creating cluster_acct (and group) records now!")
+        if self.cursor.fetchone() is None: 
             self.cursor.execute("BEGIN;")
             self.cursor.execute("""INSERT INTO %s.cluster_account 
                         (username, cluster_name, status) 
@@ -111,8 +111,11 @@ class AccountDB():
                         (username, cluster_name, group_name) 
                         VALUES ('%s', '%s', '%s');""" % (self.schema, username, cluster_nm, group_name))
             self.cursor.execute("COMMIT;")
+            if self.verbose: print "[%s] Creating cluster_acct (and group) records now!" % time.asctime()
             is_new_account = True
-            
+        else:
+            if self.verbose: print "[%s] cluster_acct (and group) records already exists" % time.asctime()
+        
         return is_new_account
         
 
@@ -128,33 +131,46 @@ class AccountDB():
         # check project id
         check_proj = 'TG-'+grant_number
         if project_id and project_id != check_proj:
-            raise Exception('ERROR - bad project id')
+            raise Exception('ERROR - bad project id (project_id should be \'TG-\'+grant number)')
         project_id = check_proj
         
         # create project if doesn't exist
         self.cursor.execute("""SELECT * FROM %s.teragrid_project 
                     WHERE id = '%s';""" % (self.schema, project_id))
         if self.cursor.fetchone() is None:
+            self.cursor.execute("BEGIN;")
             self.cursor.execute("""INSERT INTO %s.teragrid_project (id, status) 
                                 VALUES ('%s','enabled');""" % (self.schema, project_id))
-
+            self.cursor.execute("COMMIT;")
+            if self.verbose: 
+                print "[%s] create project [%s] " % (time.asctime(), project_id)
+        else:
+            if self.verbose: 
+                print "[%s] project [%s] already exists" % (time.asctime(), project_id)
         return project_id
 
 
 
-    def is_existing_project(self, project_id, grant_number):
+    def is_existing_project(self, grant_number, project_id):
         """
         Check whether the project exist in the database
         """
         check_proj = 'TG-'+grant_number
         if project_id and project_id != check_proj:
+            if self.verbose: 
+                print "[%s] Bad project id [%s]" % (time.asctime(), project_id)
             return False
         project_id = check_proj
         # create project if doesn't exist
         self.cursor.execute("""SELECT * FROM %s.teragrid_project 
                     WHERE id = '%s';""" % (self.schema, project_id))
         if self.cursor.fetchone() is None:
+            if self.verbose: 
+                print "[%s] project [%s] doesn't exist" % (time.asctime(), project_id)
             return False
+        else:
+            if self.verbose: 
+                print "[%s] project [%s] already exists" % (time.asctime(), project_id)
         return True
     
     
@@ -166,25 +182,29 @@ class AccountDB():
         """
         # allocate resource
         self.cursor.execute("""SELECT status from %s.teragrid_allocation  
-                        WHERE cluster_name = '%s' AND project = '%s';""" 
-                        % (self.schema, cluster_nm, project_id))
+                        WHERE cluster_name = '%s' AND project = '%s' AND username = '%s';""" 
+                        % (self.schema, cluster_nm, project_id, username))
         alloc_status = self.cursor.fetchone()
         if alloc_status:
-            if self.verbose:  print "allocation exists; '%s' on '%s' for '%s'; status is: '%s'"\
-                    % (project_id, cluster_nm, username, alloc_status[0])
+            if self.verbose:  print "[%s] allocation exists; '%s' on '%s' for '%s'; status is: '%s'"\
+                    % (time.asctime(), project_id, cluster_nm, username, alloc_status[0])
             if alloc_status[0] == 'disable':
                 if self.verbose: print 'enable resource'
+                self.cursor.execute("BEGIN;")
                 self.cursor.execute("""UPDATE %s.teragrid_allocation 
                                     SET status = 'enabled' 
                                     WHERE project = '%s' AND cluster_name = '%s';""" 
                                     % (self.schema, project_id, cluster_nm))
+                self.cursor.execute("COMMIT;")
         else:
-            if self.verbose:  print 'allocate resource for project %s' % project_id
+            if self.verbose:  
+                print '[%s] allocate resource for project %s' % (time.asctime(), project_id)
+            self.cursor.execute("BEGIN;")
             self.cursor.execute("""INSERT INTO %s.teragrid_allocation 
                             (username, cluster_name, project, status) 
                             VALUES ('%s', '%s', '%s', 'enabled');"""
                              % (self.schema, username, cluster_nm, project_id))
-        
+            self.cursor.execute("COMMIT;")
 
     
     def generate_new_username(self, first_name, middle_name, last_name):
@@ -211,7 +231,7 @@ class AccountDB():
         
         # check availability
         for attempt_this in attempt_list:
-            self.cursor.execute("SELECT 1 FROM %s.teragrid_user WHERE username = '%s';" % (self.schema, attempt_this))
+            self.cursor.execute("SELECT 1 FROM %s.user WHERE username = '%s';" % (self.schema, attempt_this))
             if len(self.cursor.fetchall()) == 0: 
                 return attempt_this
             
@@ -228,12 +248,15 @@ class AmieDB():
     def __init__(self, database, user, password, schema, verbose=False):
         self.schema = schema
         self.verbose = verbose
+        self.database = database
         if self.verbose: print '[%s] Connect amie database [%s] as user [%s]' % (time.asctime(), database, user)
         self.conn = psycopg2.connect(database=database, user=user, password=password)
         self.cursor = self.conn.cursor()
 
  
     def close(self):
+        if self.verbose: 
+            print '[%s] Close amie database [%s] connection' % (time.asctime(), self.database)
         if not self.cursor.closed:
             self.cursor.close()
         if not self.conn.closed:
@@ -270,7 +293,7 @@ class AmieDB():
         if conditions:                   
             sql += ' AND ' + ' AND '.join(conditions)
         if black_list:
-            sql += " AND packet_rec_id NOT IN ('%s')" % ','.join(black_list)
+            sql += " AND packet_rec_id NOT IN (%s)" % ', '.join(map(str,black_list))
         sql += " LIMIT '%d'" % limit
         
         results = []
@@ -314,8 +337,8 @@ class AmieDB():
         """
         Create a new packet in database
         """
-        if not packet.validate():
-            raise Exception('The given AMIE packet is not validate')
+        # validate the packet information before saving
+        packet.validate()
         self.cursor.execute("BEGIN;")
         self.cursor.execute("""INSERT INTO %s.packet_tbl 
                     (trans_rec_id, packet_id, type_id, version, state_id, outgoing_flag, ts)
@@ -335,7 +358,7 @@ class AmieDB():
         for tag in packet.data.keys():
             for seq in packet.data[tag].keys():
                 for subtag in packet.data[tag][seq].keys():
-                    if packet.data[tag][seq][subtag] is not None or packet.data[tag][seq][subtag] != '':
+                    if packet.data[tag][seq][subtag] is not None and packet.data[tag][seq][subtag] != '':
                         self.cursor.execute("""INSERT INTO %s.data_tbl 
                             (packet_rec_id, tag, subtag, seq, value) 
                             VALUES ('%d', '%s', '%s', '%d', '%s') """
