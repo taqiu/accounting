@@ -9,8 +9,8 @@ Recoding AMIE Project Create and Account Create scrips to be object oriented wit
 
 ## Installing instructions
 1. Configure 'conf/amie-processing.cfg'
-⋅⋅* After installed, its dafault position is '/etc/amie-processing'
-⋅⋅* Modify 'data_files' in setup.py and 'config_path' in lib/amie/config.py to change configuration position
+  * After installed, its dafault position is '/etc/amie-processing'
+  * Modify 'data_files' in setup.py and 'config_path' in lib/amie/config.py to change configuration position
 2. Run install script
 
 ```shell
