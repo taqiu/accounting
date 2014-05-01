@@ -47,10 +47,10 @@ optional arguments:
 ```
 
 ## Main Modules 
-* lib/amie/accounting.py
-* lib/amie/db.py
+### lib/amie/accounting.py
+### lib/amie/db.py
 This module is developed for database operation.
-  1. amie databse
+* amie databse
 
 ```python
 tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
@@ -63,15 +63,15 @@ packet = tgdb.find_packet(4)
 tgdb.close()
 ```
 
-  2. accouting database
+* accouting database
 
 ```python
-
-
-
+rtdb = AccountDB('testing', 'taqiu', 'password', 'public', True)
+rtdb.add_new_user('tg-jdoe', 122333, 'johndoe@example.com', 'john', 'doe', 'f', 't')
+rtdb.close()
 ```
 
-* lib/amie/models.py
+### lib/amie/models.py
 This module cantians the Packet class which is used to represent the Amie packets.
 
 ```python
