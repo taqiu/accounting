@@ -1,9 +1,12 @@
 import ConfigParser
 import os
 
-config = None
+# default configuration path and file name
 config_path = '/etc/amie-processing'
 config_file = 'amie-processing.cfg'
+
+
+config = None
 
 def get_config():
     global config

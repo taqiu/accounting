@@ -1,2 +1,5 @@
 #! /bin/bash
+# Please configure the 'amie-processing.cfg' first
+# After you install, the 'amie-processing.cfg' is under /etc/amie-processing
+# If you want to modify or update the code, you should run this script to install again
 sudo python setup.py install 
