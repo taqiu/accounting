@@ -37,7 +37,7 @@ optional arguments:
 
 ```shell
 $ rpc.py -h
-usage: rac.py [-h] [--packet_rec_id PACKET_REC_ID] [--verbose]
+usage: rpc.py [-h] [--packet_rec_id PACKET_REC_ID] [--verbose]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -68,11 +68,23 @@ packet.expected_reply_type = 7
 # set the data of packet
 packet.set_value('PiEmail', 'john.doe@example.com')
 packet.set_value('PiFirstName', 'John')
-packet.set_value('PiMiddleName', '')
+packet.set_value('PiMiddleName', 'Hi')
 packet.set_value('PiLastName', 'Doe')
 packet.set_value('GrantNumber', '87WHATEVER')
 packet.set_value('ResourceList', 'mason.iu.xsede')
 packet.set_value('ProjectID', 'TG-87WHATEVER')
+
+# set a list of data in packet (no subtage)
+pi_dn_list = ['/C=US/O=NCSA/CN=Steven James Quinn',
+              '/C=US/O=PSC/CN=Steven James Quinn',
+              '/C=US/O=SDSC/CN=Steven James Quinn'
+             ]
+packet.set_list('PiDnList', pi_dn_list)
+
+# set a list of data in packet (has subtage)
+# set_item(tag, value, seq, subtage=""):
+packet.set_item('Sfos', 122, 0, 'Number')
+packet.set_item('Sfos', 124, 1, 'Number')
 
 ```
 ### lib/amie/db.py
@@ -83,12 +95,19 @@ This module is developed for amie and accounting database operation.
 from amie.db import AmieDB
 
 tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
+
+# add a new packet to the database
 tgdb.add_packet(packet) # packet is a models.Packet object
+
+# Found any 5 packets from database
 packets = tgdb.find_all_packets(limit=5)
-# Found packet with type_id=19 state_id=6
+
+# Found packets with type_id=19 state_id=6
 packets = tgdb.find_all_packets(conditions=['type_id=19', 'state_id=6'])
-# Found packet by packet_rec_id
+
+# Found packets by packet_rec_id
 packet = tgdb.find_packet(4)
+
 tgdb.close()
 ```
 
