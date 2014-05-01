@@ -49,4 +49,51 @@ optional arguments:
 ## Main Modules 
 * lib/amie/accounting.py
 * lib/amie/db.py
+This module is developed for database operation.
+  1. amie databse
+
+```python
+tgdb = AmieDB('testing', 'taqiu', 'password', 'public', True)
+tgdb.add_packet(packet) # packet is a models.Packet object
+packets = tgdb.find_all_packets(limit=5)
+# Found packet with type_id=19 state_id=6
+packets = tgdb.find_all_packets(conditions=['type_id=19', 'state_id=6'])
+# Found packet by packet_rec_id
+packet = tgdb.find_packet(4)
+tgdb.close()
+```
+
+  2. accouting database
+
+```python
+
+
+
+```
+
 * lib/amie/models.py
+This module cantians the Packet class which is used to represent the Amie packets.
+
+```python
+# create a new packet
+packet = Packet()
+
+# set the attributes of packet
+packet.trans_rec_id = 1
+packet.packet_id = 4  
+packet.type_id = 19
+packet.version = '1.0'
+packet.state_id = 6
+packet.outgoing_flag = 0
+packet.expected_reply_type = 7
+
+# set the data of packet
+packet.set_value('PiEmail', 'john.doe@example.com')
+packet.set_value('PiFirstName', 'John')
+packet.set_value('PiMiddleName', '')
+packet.set_value('PiLastName', 'Doe')
+packet.set_value('GrantNumber', '87WHATEVER')
+packet.set_value('ResourceList', 'mason.iu.xsede')
+packet.set_value('ProjectID', 'TG-87WHATEVER')
+
+```
