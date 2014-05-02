@@ -2,8 +2,9 @@ import db
 import time
 from config import get_config
 from models import Packet
+import sys
 
-from SOAPpy import SOAPProxy
+#from SOAPpy import SOAPProxy
 
 ############################### Read configuration file #######################################
 cfg = get_config()
@@ -25,10 +26,11 @@ def get_unix_id(username):
     proxy = 'https://itaccounts.iu.edu/TG'
     SOAPaction = "https://itaccounts.iu.edu/TG#get_unix_id"
 
-    server = SOAPProxy(url, proxy, soapaction=SOAPaction)
+    #server = SOAPProxy(url, proxy, soapaction=SOAPaction)
 
-    return int(server.get_unix_id(
-      username,'603362a5264513d758b2f883abab55d0'))
+    #return int(server.get_unix_id(
+    #  username,'603362a5264513d758b2f883abab55d0'))
+    return 3456666
 
 
 
@@ -44,9 +46,22 @@ def is_iu_user(email):
     return None
 
 
+def check_point(turn_on=False):
+    if turn_on:
+        checkpt = 'n'
+        while True:
+            checkpt = raw_input("Good data or not.. continue (y/n): ")
+            if checkpt == 'n':
+                print "FAILED at CHECKPOINT -----------------------------FAIL"
+                sys.exit(1)
+            elif checkpt == 'y':
+                break
+            else:
+                print 'Unknown options!'
+
 ###################################  Process rac ###############################################
 
-def process_rac(packet_rec_id=None, verbose=False):
+def process_rac(packet_rec_id=None, verbose=False, checkpt=False):
     """
     process request account create packet
     """
@@ -56,16 +71,16 @@ def process_rac(packet_rec_id=None, verbose=False):
     if packet_rec_id is None:
         packets = tgdb.find_all_packets(['type_id=16', 'state_id=6'], black_list)
         for packet in packets:
-            _process_single_rac(tgdb, rtdb, packet, verbose)
+            _process_single_rac(tgdb, rtdb, packet, verbose, checkpt)
     else:
         packet = tgdb.find_packets(packet_rec_id)
-        _process_single_rac(tgdb, rtdb, packet, verbose)
+        _process_single_rac(tgdb, rtdb, packet, verbose, checkpt)
 
     tgdb.close()
     rtdb.close()
     
 
-def _process_single_rac(tgdb, rtdb, in_packet, verbose=False):
+def _process_single_rac(tgdb, rtdb, in_packet, verbose=False, checkpt=False):
     """
     process a single request account create packet
     """
@@ -90,10 +105,14 @@ def _process_single_rac(tgdb, rtdb, in_packet, verbose=False):
         else:
             iu_user_status = 'f'
             username = rtdb.generate_new_username(first_name, middle_name, last_name)
+            if verbose:
+                print '[%s] new user name is [%s]' % (time.asctime(), username)
         
         unixid = get_unix_id(username)
         # create new user account in db
         rtdb.add_new_user(username, unixid, email, first_name, last_name, iu_user_status, 't')
+    
+    check_point(checkpt)
 
     grant_number = in_packet.get_value('GrantNumber')
     resource_list = in_packet.get_value('ResourceList')
@@ -106,6 +125,8 @@ def _process_single_rac(tgdb, rtdb, in_packet, verbose=False):
         raise Exception('Project does not exist')
     rtdb.create_cluster_account(username, cluster_nm, group_name)
     rtdb.allocate_resource(project_id, username, cluster_nm)
+    
+    check_point(checkpt)
     
     # create outgoing packet
     out_packet = Packet()
@@ -137,11 +158,10 @@ def _process_single_rac(tgdb, rtdb, in_packet, verbose=False):
     tgdb.add_packet(out_packet)
     
 
-
    
         
 ###################################  Process RPC ###############################################    
-def process_rpc(packet_rec_id=None, verbose=False):
+def process_rpc(packet_rec_id=None, verbose=False, checkpt=False):
     """
     The request_project_create packet contains information to be used by a 
     local site to create a project and an account for the PI on the project. 
@@ -154,16 +174,16 @@ def process_rpc(packet_rec_id=None, verbose=False):
     if packet_rec_id is None:
         packets = tgdb.find_all_packets(['type_id=19', 'state_id=6'], black_list)
         for packet in packets:
-            _process_single_rpc(tgdb, rtdb, packet, verbose)
+            _process_single_rpc(tgdb, rtdb, packet, verbose, checkpt)
     else:
         packet = tgdb.find_packets(packet_rec_id)
-        _process_single_rpc(tgdb, rtdb, packet, verbose)
+        _process_single_rpc(tgdb, rtdb, packet, verbose, checkpt)
 
     tgdb.close()
     rtdb.close()
 
 
-def _process_single_rpc(tgdb, rtdb, in_packet, verbose=False):
+def _process_single_rpc(tgdb, rtdb, in_packet, verbose=False, checkpt=False):
     """
     process a single request project create packet
     """
@@ -189,11 +209,14 @@ def _process_single_rpc(tgdb, rtdb, in_packet, verbose=False):
             iu_user_status = 'f'
             # generate a user name according to user's name
             username = rtdb.generate_new_username(first_name, middle_name, last_name)
+            if verbose:
+                print '[%s] new user name is [%s]' % (time.asctime(), username)
         
         unixid = get_unix_id(username)
         # create new user account in db
         rtdb.add_new_user(username, unixid, email, first_name, last_name, iu_user_status, 't')
             
+    check_point(checkpt)
         
     # allocation resource for the project
     grant_number = in_packet.get_value('GrantNumber')
@@ -207,6 +230,8 @@ def _process_single_rpc(tgdb, rtdb, in_packet, verbose=False):
     project_id = rtdb.create_project(grant_number, project_id)
     rtdb.create_cluster_account(username, cluster_nm, group_name)
     rtdb.allocate_resource(project_id, username, cluster_nm)
+    
+    check_point(checkpt)
     
     # create outgoing packet
     out_packet = Packet()

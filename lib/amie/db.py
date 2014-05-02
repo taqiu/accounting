@@ -49,6 +49,8 @@ class AccountDB():
         self.cursor.execute("SELECT username FROM %s.user WHERE email like '%s';" % (self.schema, email))
         result = self.cursor.fetchone()
         if result:
+            if self.verbose: 
+                print '[%s] User [%s] exists' % (time.asctime(), result[0])
             return result[0]
         
         # sometimes, user might change their email domain
@@ -60,8 +62,12 @@ class AccountDB():
                             AND last_name like '%s';""" % (self.schema, email_id, first_name, last_name))
         result = self.cursor.fetchone()
         if result:
+            if self.verbose: 
+                print '[%s] User [%s] exists' % (time.asctime(), result[0])
             return result[0]
         
+        if self.verbose: 
+            print '[%s] User does not exist' % (time.asctime())
         return None
 
 

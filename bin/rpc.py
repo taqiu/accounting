@@ -19,6 +19,10 @@ if __name__ == '__main__':
         action='store_true',
         default=False,
         help="print out the processing detail")
+    parser.add_argument("--checkpt",
+        action='store_true',
+        default=False,
+        help="enable check point")
     args = parser.parse_args()
     
-    process_rpc(args.packet_rec_id, args.verbose)
+    process_rpc(args.packet_rec_id, args.verbose, args.checkpt)

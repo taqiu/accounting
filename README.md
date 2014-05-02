@@ -31,6 +31,7 @@ optional arguments:
   --packet_rec_id PACKET_REC_ID
                         process single packet with the given receive id
   --verbose             print out the processing detail
+  --checkpt             enable check point
 ```
 
 * Process request_project_create packet/packets
@@ -44,6 +45,7 @@ optional arguments:
   --packet_rec_id PACKET_REC_ID
                         process single packet with the given receive id
   --verbose             print out the processing detail
+  --checkpt             enable check point
 ```
 
 ## Main Modules 
